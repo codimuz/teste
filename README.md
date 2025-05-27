@@ -95,15 +95,34 @@ motivo[NN]_YYYYMMDD.txt
 
 ### Conteúdo:
 ```
-0007891000053607012.500
-0007891000315507003.000
+Inventario 0007891000053607 012.500
+Inventario 0007891000315507 003.000
 ```
 
 ### Formato da linha:
+- **Palavra "Inventario"**: Inicial maiúscula
 - **13 caracteres**: Código do produto (preenchido com zeros à esquerda)
 - **Quantidade**: 3 casas decimais com ponto como separador
   - Para **UN**: Aplica `Math.floor()` e formata como `X.000`
   - Para **KG**: Mantém decimais como `X.XXX`
+
+### Estrutura de Diretórios:
+```
+Documents/motivos/
+├── motivo01/
+│   ├── motivo01_20250127.txt
+│   └── motivo01_20250128.txt
+├── motivo02/
+│   ├── motivo02_20250127.txt
+│   └── motivo02_20250128.txt
+└── ...
+```
+
+### Lógica de Exportação:
+- Apenas motivos com lançamentos **não sincronizados** (`is_synchronized = false`) são exportados
+- Lançamentos são **consolidados** por produto antes da exportação
+- Após exportação bem-sucedida, lançamentos são marcados como `is_synchronized = true`
+- Falhas em um motivo não afetam a exportação dos demais
 
 ## 🎯 Como Usar
 
@@ -127,10 +146,14 @@ motivo[NN]_YYYYMMDD.txt
 6. Toque em **"Salvar Lançamento"**
 
 ### 4. Exportar Lançamentos
-1. Toque em **"Exportar Lançamentos do Dia"**
-2. O sistema gera arquivos `.txt` para todos os motivos com lançamentos
-3. Os arquivos são salvos na estrutura de pastas do aplicativo
-4. Lançamentos são marcados como exportados
+1. Toque em **"Exportar Lançamentos"**
+2. O sistema verifica todos os motivos com lançamentos **não sincronizados**
+3. Para cada motivo com lançamentos pendentes:
+   - Cria diretório `Documents/motivos/motivoXX/`
+   - Consolida quantidades por produto
+   - Gera arquivo `motivoXX_YYYYMMDD.txt` com formato `Inventario [codigo] [quantidade]`
+   - Marca lançamentos como sincronizados (`is_synchronized = true`)
+4. Falhas em motivos específicos não impedem exportação dos demais
 
 ## 🔧 Validações e Regras
 

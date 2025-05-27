@@ -107,14 +107,18 @@ export default function HomeScreen() {
   const handleExportEntries = async () => {
     try {
       setIsLoading(true);
-      const result = await fileService.exportTodaysEntries();
+      const result = await fileService.exportMotivosEntries();
       
       if (result.success) {
-        Alert.alert(
-          'Exportação Concluída',
-          `${result.message}\n\nArquivos: ${result.files.join(', ')}`,
-          [{ text: 'OK' }]
-        );
+        let message = result.message;
+        if (result.exportedMotivos.length > 0) {
+          message += `\n\nMotivos exportados: ${result.exportedMotivos.join(', ')}`;
+        }
+        if (result.errors.length > 0) {
+          message += `\n\nErros: ${result.errors.join(', ')}`;
+        }
+        
+        Alert.alert('Exportação Concluída', message, [{ text: 'OK' }]);
       } else {
         Alert.alert('Aviso', result.message);
       }
@@ -193,26 +197,6 @@ export default function HomeScreen() {
         is_exported: false,
         is_synchronized: false,
       });
-
-      // Busca o motivo para obter o código
-      const selectedReason = reasons.find(r => r.id === selectedReasonId);
-      if (!selectedReason) {
-        throw new Error('Motivo não encontrado');
-      }
-
-      // Salva/atualiza arquivo .txt
-      await fileService.saveEntryToFile(
-        {
-          product_code: selectedProduct.codigo,
-          reason_id: selectedReasonId,
-          quantity: validatedQuantity,
-          entry_date: today,
-          is_exported: false,
-          is_synchronized: false,
-        },
-        selectedReason.codigo,
-        selectedProduct.unit_type
-      );
 
       // Feedback e limpeza
       Alert.alert(

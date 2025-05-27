@@ -72,6 +72,17 @@ class DatabaseService {
         FOREIGN KEY (entry_id) REFERENCES entries (id)
       );
     `);
+
+    // Tabela de importações
+    await this.db.execAsync(`
+      CREATE TABLE IF NOT EXISTS imports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        file_name TEXT NOT NULL,
+        import_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+        products_count INTEGER DEFAULT 0,
+        status TEXT DEFAULT 'completed'
+      );
+    `);
   }
 
   private async insertDefaultReasons() {
@@ -283,12 +294,93 @@ class DatabaseService {
 
     try {
       await this.db.runAsync(`
-        UPDATE entries 
+        UPDATE entries
         SET is_exported = TRUE, updated_at = CURRENT_TIMESTAMP
         WHERE reason_id = ? AND entry_date = ?
       `, [reasonId, date]);
     } catch (error) {
       console.error('Erro ao marcar como exportado:', error);
+      throw error;
+    }
+  }
+
+  // Métodos para exportação com is_synchronized
+  async getActiveReasons(): Promise<Reason[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      const result = await this.db.getAllAsync(
+        'SELECT * FROM reasons ORDER BY codigo'
+      ) as Reason[];
+      
+      return result;
+    } catch (error) {
+      console.error('Erro ao buscar motivos ativos:', error);
+      return [];
+    }
+  }
+
+  async getUnsynchronizedEntriesByReason(reasonId: number): Promise<(Entry & { unit_type: string })[]> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      const result = await this.db.getAllAsync(`
+        SELECT e.*, p.unit_type
+        FROM entries e
+        JOIN products p ON e.product_code = p.codigo
+        WHERE e.reason_id = ? AND e.is_synchronized = FALSE
+        ORDER BY e.product_code
+      `, [reasonId]) as (Entry & { unit_type: string })[];
+
+      return result;
+    } catch (error) {
+      console.error('Erro ao buscar entries não sincronizados:', error);
+      return [];
+    }
+  }
+
+  async getConsolidatedEntriesByReason(reasonId: number): Promise<Array<{
+    product_code: string;
+    total_quantity: number;
+    unit_type: string;
+  }>> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      const result = await this.db.getAllAsync(`
+        SELECT
+          e.product_code,
+          SUM(e.quantity) as total_quantity,
+          p.unit_type
+        FROM entries e
+        JOIN products p ON e.product_code = p.codigo
+        WHERE e.reason_id = ? AND e.is_synchronized = FALSE
+        GROUP BY e.product_code, p.unit_type
+        ORDER BY e.product_code
+      `, [reasonId]) as Array<{
+        product_code: string;
+        total_quantity: number;
+        unit_type: string;
+      }>;
+
+      return result;
+    } catch (error) {
+      console.error('Erro ao buscar entries consolidados:', error);
+      return [];
+    }
+  }
+
+  async markEntriesAsSynchronized(reasonId: number): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      await this.db.runAsync(`
+        UPDATE entries
+        SET is_synchronized = TRUE, updated_at = CURRENT_TIMESTAMP
+        WHERE reason_id = ? AND is_synchronized = FALSE
+      `, [reasonId]);
+    } catch (error) {
+      console.error('Erro ao marcar entries como sincronizados:', error);
       throw error;
     }
   }
