@@ -104,28 +104,124 @@ export default function HomeScreen() {
     }
   };
 
-  const handleExportEntries = async () => {
+  const handleInternalExport = async () => {
+    console.log(`[DEBUG] ==========================================`);
+    console.log(`[DEBUG] INICIANDO EXPORTAÇÃO INTERNA`);
+    console.log(`[DEBUG] Esta exportação salva no diretório do app`);
+    console.log(`[DEBUG] NÃO marca registros como sincronizados`);
+    console.log(`[DEBUG] ==========================================`);
+    console.log(`[DEBUG] handleInternalExport ENTRY - UI Thread: ${Date.now()}`);
+    console.log(`[DEBUG] Current loading state: ${isLoading}`);
+    console.log(`[DEBUG] User initiated internal export`);
+    
     try {
+      console.log(`[DEBUG] Setting loading state to true`);
       setIsLoading(true);
+      
+      console.log(`[DEBUG] Calling fileService.exportMotivosEntries()`);
+      const startExportTime = Date.now();
       const result = await fileService.exportMotivosEntries();
+      const exportTime = Date.now() - startExportTime;
+      
+      console.log(`[DEBUG] Internal export operation completed in ${exportTime}ms`);
+      console.log(`[DEBUG] Internal export result:`, result);
+      console.log(`[DEBUG] Success: ${result.success}`);
+      console.log(`[DEBUG] Exported motivos: ${result.exportedMotivos.length}`);
+      console.log(`[DEBUG] Errors: ${result.errors.length}`);
       
       if (result.success) {
+        console.log(`[DEBUG] Preparing internal success message for user`);
         let message = result.message;
         if (result.exportedMotivos.length > 0) {
           message += `\n\nMotivos exportados: ${result.exportedMotivos.join(', ')}`;
+          console.log(`[DEBUG] Added exported motivos to message`);
         }
         if (result.errors.length > 0) {
           message += `\n\nErros: ${result.errors.join(', ')}`;
+          console.log(`[DEBUG] Added errors to internal message`);
         }
         
-        Alert.alert('Exportação Concluída', message, [{ text: 'OK' }]);
+        console.log(`[DEBUG] Final internal success message: ${message}`);
+        console.log(`[DEBUG] Showing internal success alert to user`);
+        Alert.alert('Exportação Interna Concluída', message, [{ text: 'OK' }]);
       } else {
+        console.log(`[DEBUG] Internal export failed - showing warning to user`);
+        console.log(`[DEBUG] Internal warning message: ${result.message}`);
         Alert.alert('Aviso', result.message);
       }
     } catch (error) {
-      Alert.alert('Erro', 'Erro durante a exportação');
+      console.log(`[DEBUG] handleInternalExport - Exception caught`);
+      console.error(`[DEBUG] Internal exception details:`, error);
+      console.error(`[DEBUG] Internal exception type: ${error instanceof Error ? error.constructor.name : typeof error}`);
+      console.error(`[DEBUG] Internal exception message: ${error instanceof Error ? error.message : String(error)}`);
+      console.log(`[DEBUG] Showing internal error alert to user`);
+      Alert.alert('Erro', 'Erro durante a exportação interna');
     } finally {
+      console.log(`[DEBUG] Setting loading state to false (internal)`);
       setIsLoading(false);
+      console.log(`[DEBUG] handleInternalExport EXIT`);
+    }
+  };
+
+  const handlePublicExport = async () => {
+    console.log(`[DEBUG] handlePublicExport ENTRY - UI Thread: ${Date.now()}`);
+    console.log(`[DEBUG] Current loading state: ${isLoading}`);
+    console.log(`[DEBUG] User initiated public export`);
+    
+    try {
+      console.log(`[DEBUG] Setting loading state to true`);
+      setIsLoading(true);
+      
+      console.log(`[DEBUG] Calling fileService.exportEntriesToPublicDirectory()`);
+      const startExportTime = Date.now();
+      const result = await fileService.exportEntriesToPublicDirectory();
+      const exportTime = Date.now() - startExportTime;
+      
+      console.log(`[DEBUG] Export operation completed in ${exportTime}ms`);
+      console.log(`[DEBUG] Export result:`, result);
+      console.log(`[DEBUG] Success: ${result.success}`);
+      console.log(`[DEBUG] Saved files: ${result.savedFiles.length}`);
+      console.log(`[DEBUG] Errors: ${result.errors.length}`);
+      
+      if (result.success) {
+        console.log(`[DEBUG] Preparing success message for user`);
+        let message = result.message;
+        if (result.savedFiles.length > 0) {
+          message += `\n\nArquivos salvos: ${result.savedFiles.join(', ')}`;
+          console.log(`[DEBUG] Added saved files to message`);
+        }
+        if (result.location) {
+          message += `\n\nLocal: Diretório escolhido pelo usuário`;
+          console.log(`[DEBUG] Added location to message`);
+        }
+        if (result.errors.length > 0) {
+          message += `\n\nErros: ${result.errors.join(', ')}`;
+          console.log(`[DEBUG] Added errors to message`);
+        }
+        
+        console.log(`[DEBUG] Final success message: ${message}`);
+        console.log(`[DEBUG] Showing success alert to user`);
+        Alert.alert(
+          'Exportação para Documents Concluída',
+          message,
+          [{ text: 'OK' }]
+        );
+      } else {
+        console.log(`[DEBUG] Export failed - showing warning to user`);
+        console.log(`[DEBUG] Warning message: ${result.message}`);
+        Alert.alert('Aviso', result.message);
+      }
+    } catch (error) {
+      console.log(`[DEBUG] handlePublicExport - Exception caught`);
+      console.error(`[DEBUG] Exception details:`, error);
+      console.error(`[DEBUG] Exception type: ${error instanceof Error ? error.constructor.name : typeof error}`);
+      console.error(`[DEBUG] Exception message: ${error instanceof Error ? error.message : String(error)}`);
+      console.log(`[DEBUG] Showing error alert to user`);
+      Alert.alert('Erro', 'Erro durante a exportação pública');
+    } finally {
+      console.log(`[DEBUG] Setting loading state to false`);
+      setIsLoading(false);
+      console.log(`[DEBUG] handlePublicExport EXIT`);
     }
   };
 
@@ -242,7 +338,7 @@ export default function HomeScreen() {
         <Text style={styles.title}>Gestão de Quebras</Text>
       </View>
 
-      {/* Botões de Importação e Exportação */}
+      {/* Botão de Importação */}
       <View style={styles.buttonRow}>
         <TouchableOpacity
           style={[styles.actionButton, styles.importButton]}
@@ -252,14 +348,26 @@ export default function HomeScreen() {
           <IconSymbol name="square.and.arrow.down" size={20} color="#fff" />
           <Text style={styles.buttonText}>Importar Produtos</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Botões de Exportação */}
+      <View style={styles.buttonRow}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.internalExportButton]}
+          onPress={handleInternalExport}
+          disabled={isLoading}
+        >
+          <IconSymbol name="folder" size={20} color="#fff" />
+          <Text style={styles.buttonText}>Salvar Internamente</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, styles.exportButton]}
-          onPress={handleExportEntries}
+          style={[styles.actionButton, styles.publicExportButton]}
+          onPress={handlePublicExport}
           disabled={isLoading}
         >
           <IconSymbol name="square.and.arrow.up" size={20} color="#fff" />
-          <Text style={styles.buttonText}>Exportar Lançamentos</Text>
+          <Text style={styles.buttonText}>Exportar para Documents</Text>
         </TouchableOpacity>
       </View>
 
@@ -405,6 +513,12 @@ const styles = StyleSheet.create({
   },
   importButton: {
     backgroundColor: '#28a745',
+  },
+  internalExportButton: {
+    backgroundColor: '#6c757d',
+  },
+  publicExportButton: {
+    backgroundColor: '#007bff',
   },
   exportButton: {
     backgroundColor: '#007bff',

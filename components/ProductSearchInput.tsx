@@ -111,7 +111,8 @@ export const ProductSearchInput: React.FC<ProductSearchInputProps> = ({
             style={styles.suggestionsList}
             maxToRenderPerBatch={10}
             initialNumToRender={5}
-            nestedScrollEnabled
+            nestedScrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
           />
         </View>
       )}

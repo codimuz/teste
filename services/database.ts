@@ -339,48 +339,97 @@ class DatabaseService {
     }
   }
 
-  async getConsolidatedEntriesByReason(reasonId: number): Promise<Array<{
+  async getConsolidatedEntriesByReason(reasonId: number, includeAll: boolean = false): Promise<Array<{
     product_code: string;
     total_quantity: number;
     unit_type: string;
   }>> {
-    if (!this.db) throw new Error('Database not initialized');
+    console.log(`[DEBUG] getConsolidatedEntriesByReason ENTRY - Thread: ${Date.now()}`);
+    console.log(`[DEBUG] Input parameters: reasonId=${reasonId}, includeAll=${includeAll}`);
+    console.log(`[DEBUG] Database state: ${this.db ? 'initialized' : 'not initialized'}`);
+    
+    if (!this.db) {
+      console.log(`[DEBUG] getConsolidatedEntriesByReason EXIT - Database not initialized error`);
+      throw new Error('Database not initialized');
+    }
 
     try {
-      const result = await this.db.getAllAsync(`
+      console.log(`[DEBUG] Starting consolidated entries query for reasonId=${reasonId}`);
+      
+      // Ajusta a query baseado no parâmetro includeAll
+      const whereClause = includeAll
+        ? 'WHERE e.reason_id = ?'
+        : 'WHERE e.reason_id = ? AND e.is_synchronized = FALSE';
+      
+      const sqlQuery = `
         SELECT
           e.product_code,
           SUM(e.quantity) as total_quantity,
           p.unit_type
         FROM entries e
         JOIN products p ON e.product_code = p.codigo
-        WHERE e.reason_id = ? AND e.is_synchronized = FALSE
+        ${whereClause}
         GROUP BY e.product_code, p.unit_type
         ORDER BY e.product_code
-      `, [reasonId]) as Array<{
+      `;
+      console.log(`[DEBUG] SQL Query: ${sqlQuery.replace(/\s+/g, ' ').trim()}`);
+      console.log(`[DEBUG] Query parameters: [${reasonId}]`);
+      
+      const startTime = Date.now();
+      const result = await this.db.getAllAsync(sqlQuery, [reasonId]) as Array<{
         product_code: string;
         total_quantity: number;
         unit_type: string;
       }>;
+      
+      const executionTime = Date.now() - startTime;
+      console.log(`[DEBUG] Query executed in ${executionTime}ms`);
+      console.log(`[DEBUG] Result count: ${result.length} entries`);
+      console.log(`[DEBUG] Result preview:`, result.slice(0, 3).map(r => `${r.product_code}:${r.total_quantity}${r.unit_type}`));
+      console.log(`[DEBUG] getConsolidatedEntriesByReason EXIT - Success`);
 
       return result;
     } catch (error) {
-      console.error('Erro ao buscar entries consolidados:', error);
+      console.log(`[DEBUG] getConsolidatedEntriesByReason EXIT - Error occurred`);
+      console.error(`[DEBUG] Error details:`, error);
+      console.error(`[DEBUG] Error type: ${error instanceof Error ? error.constructor.name : typeof error}`);
+      console.error(`[DEBUG] Error message: ${error instanceof Error ? error.message : String(error)}`);
       return [];
     }
   }
 
   async markEntriesAsSynchronized(reasonId: number): Promise<void> {
-    if (!this.db) throw new Error('Database not initialized');
+    console.log(`[DEBUG] markEntriesAsSynchronized ENTRY - Thread: ${Date.now()}`);
+    console.log(`[DEBUG] Input parameters: reasonId=${reasonId}`);
+    console.log(`[DEBUG] Database state: ${this.db ? 'initialized' : 'not initialized'}`);
+    
+    if (!this.db) {
+      console.log(`[DEBUG] markEntriesAsSynchronized EXIT - Database not initialized error`);
+      throw new Error('Database not initialized');
+    }
 
     try {
-      await this.db.runAsync(`
+      console.log(`[DEBUG] Starting SQL update for reasonId=${reasonId}`);
+      console.log(`[DEBUG] SQL Query: UPDATE entries SET is_synchronized = TRUE, updated_at = CURRENT_TIMESTAMP WHERE reason_id = ? AND is_synchronized = FALSE`);
+      console.log(`[DEBUG] Query parameters: [${reasonId}]`);
+      
+      const startTime = Date.now();
+      const result = await this.db.runAsync(`
         UPDATE entries
         SET is_synchronized = TRUE, updated_at = CURRENT_TIMESTAMP
         WHERE reason_id = ? AND is_synchronized = FALSE
       `, [reasonId]);
+      
+      const executionTime = Date.now() - startTime;
+      console.log(`[DEBUG] SQL execution completed in ${executionTime}ms`);
+      console.log(`[DEBUG] Affected rows: ${result.changes || 'unknown'}`);
+      console.log(`[DEBUG] markEntriesAsSynchronized EXIT - Success`);
+      
     } catch (error) {
-      console.error('Erro ao marcar entries como sincronizados:', error);
+      console.log(`[DEBUG] markEntriesAsSynchronized EXIT - Error occurred`);
+      console.error(`[DEBUG] Error details:`, error);
+      console.error(`[DEBUG] Error type: ${error instanceof Error ? error.constructor.name : typeof error}`);
+      console.error(`[DEBUG] Error message: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
